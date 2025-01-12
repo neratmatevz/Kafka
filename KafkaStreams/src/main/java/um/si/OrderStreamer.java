@@ -45,9 +45,10 @@ public class OrderStreamer {
                         (key, value, aggregate) -> aggregate + value, // Aggregator: sešteje vse vrednosti za skupniZnesek po idju
                         Materialized.with(Serdes.String(), Serdes.Double())
                 ).toStream()
+                .peek((key, value) -> System.out.println("Kupec ID: " + key + ", Skupni znesek: " + value)) // Izpis na konzolo
                 .to("kafka-kupec-vsota-zneskov", Produced.with(Serdes.String(), Serdes.Double()));
 
-        inputStream.print(Printed.toSysOut());
+
 
         //druga analiza
         KTable<String, Double> vsotaZneskovKupcaStream = builder.table("kafka-kupec-vsota-zneskov", Consumed.with(Serdes.String(), Serdes.Double()));
@@ -63,7 +64,8 @@ public class OrderStreamer {
                 .map((k, v) -> new KeyValue<>(v.get("Kupec_idKupec").toString(), 1)) // Izločimo ID kupca in nastavimo vrednost na 1 (za vsako naročilo)
                 .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // Grupiramo po ID-ju kupca
                 .count() // Štejemo število naročil za vsakega kupca
-                .toStream() // Pretvorimo KTable v KStream
+                .toStream()
+                .peek((key, value) -> System.out.println("Kupec ID: " + key + ", Število naročil: " + value)) // Izpis na konzolo
                 .mapValues(value -> value.toString()) // Pretvorimo število naročil v String
                 .to("kafka-kupec-narocila", Produced.with(Serdes.String(), Serdes.String())); // Pošljemo v nov Kafka stream
 
